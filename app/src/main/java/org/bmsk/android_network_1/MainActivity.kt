@@ -2,36 +2,87 @@ package org.bmsk.android_network_1
 
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
+import androidx.core.widget.addTextChangedListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
 import java.io.BufferedReader
+import java.io.IOException
 import java.io.InputStreamReader
 import java.io.PrintWriter
 import java.net.ConnectException
 import java.net.Socket
 import java.net.SocketException
 import java.net.SocketTimeoutException
+import kotlin.coroutines.CoroutineContext
 
 class MainActivity : AppCompatActivity() {
+    private val okHttpClient = OkHttpClient()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // 코루틴을 사용하여 소켓 연결을 시작한다.
-        CoroutineScope(Dispatchers.Main).launch {
-            val result = connectToServer("10.0.2.2")
-            when (result) {
-                is SocketResult.Success -> {
+        val editText = findViewById<EditText>(R.id.serverHostEditText)
+        val confirmButton = findViewById<Button>(R.id.confirmButton)
+        val informationTextView = findViewById<TextView>(R.id.informationTextView)
+        var serverHost = ""
 
+        editText.addTextChangedListener {
+            serverHost = it.toString()
+        }
+
+        confirmButton.setOnClickListener {
+            val request: Request = Request.Builder()
+                .url("http://$serverHost:$PORT")
+                .build()
+
+            val callback = object : Callback {
+                // 요청 자체가 실패거나 통신 과정에서 오류가 났을 때 발생
+                override fun onFailure(call: Call, e: IOException) {
+
+                    CoroutineScope(Dispatchers.Main).launch {
+                        Toast.makeText(this@MainActivity, "수신에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                        Log.e("Client", e.toString())
+                    }
                 }
 
-                is SocketResult.Error -> {
-                    Log.e("Error", result.error)
+                override fun onResponse(call: Call, response: Response) {
+
+                    // 응답은 성공했지만, 데이터는 실패로 내려질 수 있다
+                    if (response.isSuccessful) {
+                        val responseMessage = response.body?.string()
+
+                        CoroutineScope(Dispatchers.Main).launch {
+                            informationTextView.isVisible = true
+                            informationTextView.text = responseMessage
+
+                            editText.isVisible = false
+                            confirmButton.isVisible = false
+                        }
+                    } else {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            Toast.makeText(this@MainActivity, "수신에 실패했습니다.", Toast.LENGTH_SHORT)
+                                .show()
+                        }
+                    }
                 }
             }
+
+            okHttpClient.newCall(request).enqueue(callback)
         }
     }
 
@@ -68,7 +119,7 @@ class MainActivity : AppCompatActivity() {
             reader.close()
             writer.close()
             socket.close()
-            
+
             SocketResult.Success(receivedMessages.toString())
         } catch (e: ConnectException) {
             SocketResult.Error("서버에 연결할 수 없습니다: ${e.localizedMessage}")

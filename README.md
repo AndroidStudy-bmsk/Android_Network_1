@@ -172,3 +172,79 @@ CoroutineScope(Dispatchers.Main).launch {
 2. `SocketTimeoutException`: 서버 연결 시간이 초과된 경우 이 예외가 발생한다. 이 경우, 사용자에게 연결 시간이 초과되었음을 알려주어야 한다.
 3. `SocketException`: 소켓 관련 오류가 발생한 경우 이 예외가 발생하도록 하였다. 이 경우엔, 사용자에게 소켓 오류가 발생했음을 알려주어야 한다.
 4. `Exception`: 기타 예외 및 에러를 처리하기 위해 기본 `Exception`을 사용하였다. 이 경우, 사용자에게 알 수 없는 오류가 발생했음을 알려주어야 한다.
+
+## OkHttp - WebSocket
+
+OkHttp를 사용하여 소켓 통신을 구현하려면, OkHttp의 WebSocket 기능을 사용할 수 있다.
+WebSocket은 양방향 통신이 가능한 프로토콜로, 클라이언트와 서버 간의 실시간 데이터 교환에 적합하다.
+
+```groovy
+dependencies {
+    implementation 'com.squareup.okhttp3:okhttp:4.9.2'
+    implementation 'com.squareup.okhttp3:logging-interceptor:4.9.2'
+}
+```
+
+### WebSocket 연결 구현
+
+```kotlin
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
+
+class MainActivity : AppCompatActivity() {
+
+    private val client = OkHttpClient()
+    private lateinit var webSocket: WebSocket
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        // WebSocket 연결을 시작합니다.
+        startWebSocketConnection()
+    }
+
+    private fun startWebSocketConnection() {
+        val request = Request.Builder()
+            .url("wss://your.websocket.server")
+            .build()
+
+        val webSocketListener = object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
+                // 연결이 성공적으로 열린 경우
+                webSocket.send("Hello, Server!")
+            }
+
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                // 서버로부터 메시지를 받은 경우
+                runOnUiThread {
+                    // UI 업데이트
+                }
+            }
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
+                // 연결 실패 또는 오류 발생 시
+                t.printStackTrace()
+            }
+
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                // 연결이 닫히는 경우
+            }
+        }
+
+        webSocket = client.newWebSocket(request, webSocketListener)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // WebSocket 연결 종료
+        webSocket.close(NORMAL_CLOSURE_STATUS, "Activity 종료")
+    }
+
+    companion object {
+        private const val NORMAL_CLOSURE_STATUS = 1000
+    }
+}
+```
