@@ -2,7 +2,6 @@ package org.bmsk.android_network_1
 
 import android.os.Bundle
 import android.util.Log
-import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -10,6 +9,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.core.widget.addTextChangedListener
+import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -27,7 +27,6 @@ import java.net.ConnectException
 import java.net.Socket
 import java.net.SocketException
 import java.net.SocketTimeoutException
-import kotlin.coroutines.CoroutineContext
 
 class MainActivity : AppCompatActivity() {
     private val okHttpClient = OkHttpClient()
@@ -39,7 +38,7 @@ class MainActivity : AppCompatActivity() {
         val editText = findViewById<EditText>(R.id.serverHostEditText)
         val confirmButton = findViewById<Button>(R.id.confirmButton)
         val informationTextView = findViewById<TextView>(R.id.informationTextView)
-        var serverHost = ""
+        var serverHost = "" // 애뮬레이터의 경우 10.0.2.2
 
         editText.addTextChangedListener {
             serverHost = it.toString()
@@ -65,10 +64,11 @@ class MainActivity : AppCompatActivity() {
                     // 응답은 성공했지만, 데이터는 실패로 내려질 수 있다
                     if (response.isSuccessful) {
                         val responseMessage = response.body?.string()
+                        val message = Gson().fromJson(responseMessage, Message::class.java)
 
                         CoroutineScope(Dispatchers.Main).launch {
                             informationTextView.isVisible = true
-                            informationTextView.text = responseMessage
+                            informationTextView.text = message.message
 
                             editText.isVisible = false
                             confirmButton.isVisible = false
